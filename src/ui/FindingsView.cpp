@@ -1,5 +1,6 @@
 #include "explainbin/ui/FindingsView.hpp"
 
+#include "explainbin/ui/Animations.hpp"
 #include "explainbin/ui/Theme.hpp"
 #include "explainbin/ui/widgets/SeverityBadge.hpp"
 
@@ -10,6 +11,8 @@
 #include <QLineEdit>
 #include <QScrollArea>
 #include <QVBoxLayout>
+
+#include <algorithm>
 
 namespace explainbin::ui {
 namespace {
@@ -39,7 +42,7 @@ void addSection(QVBoxLayout* layout, const QString& title,
         return;
     }
     auto* heading = new QLabel(title, parent);
-    heading->setStyleSheet(QStringLiteral("font-weight: 650; color: #8fb3cc;"));
+    heading->setObjectName(QStringLiteral("fieldLabel"));
     layout->addWidget(heading);
     layout->addWidget(bodyLabel(bullets(items), parent));
 }
@@ -92,7 +95,7 @@ FindingsView::FindingsView(QWidget* parent) : QWidget(parent) {
     root->addWidget(filterRow);
 
     m_empty = new QLabel(QStringLiteral("No analysis result yet."), this);
-    m_empty->setObjectName(QStringLiteral("muted"));
+    m_empty->setObjectName(QStringLiteral("emptyHint"));
     m_empty->setAlignment(Qt::AlignCenter);
     m_empty->setWordWrap(true);
     m_empty->setMinimumHeight(220);
@@ -141,12 +144,16 @@ void FindingsView::setResult(const AnalysisResult& result) {
         entry.searchText = searchText.toLower();
         m_cards.push_back(entry);
     }
+    m_animateNext = true;
     rebuild();
 }
 
 QWidget* FindingsView::createFindingCard(const Finding& finding) {
     auto* card = new QFrame(this);
     card->setObjectName(QStringLiteral("findingCard"));
+    card->setStyleSheet(
+        QStringLiteral("QFrame#findingCard { border-left: 3px solid %1; }")
+            .arg(severityColor(finding.severity).name()));
 
     auto* layout = new QVBoxLayout(card);
     layout->setContentsMargins(16, 14, 16, 14);
@@ -188,7 +195,7 @@ QWidget* FindingsView::createFindingCard(const Finding& finding) {
 
     if (!finding.whyItMatters.empty()) {
         auto* heading = new QLabel(QStringLiteral("Why it matters"), card);
-        heading->setStyleSheet(QStringLiteral("font-weight: 650; color: #8fb3cc;"));
+        heading->setObjectName(QStringLiteral("fieldLabel"));
         layout->addWidget(heading);
         layout->addWidget(bodyLabel(fromUtf8(finding.whyItMatters), card));
     }
@@ -214,6 +221,17 @@ void FindingsView::rebuild() {
         if (show) {
             ++visible;
         }
+    }
+
+    if (m_animateNext) {
+        int delay = 0;
+        for (const auto& entry : m_cards) {
+            if (entry.widget->isVisible()) {
+                anim::fadeIn(entry.widget, 240, std::min(delay, 300));
+                delay += 30;
+            }
+        }
+        m_animateNext = false;
     }
 
     m_summary->setText(QStringLiteral("Showing %1 of %2").arg(visible).arg(m_cards.size()));

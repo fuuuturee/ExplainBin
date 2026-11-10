@@ -1,5 +1,14 @@
 <RCC>
     <qresource prefix="/icons">
         <file alias="appicon.svg">icons/appicon.svg</file>
+        <file alias="check.svg">icons/check.svg</file>
+        <file alias="nav_dashboard.svg">icons/nav_dashboard.svg</file>
+        <file alias="nav_file.svg">icons/nav_file.svg</file>
+        <file alias="nav_structure.svg">icons/nav_structure.svg</file>
+        <file alias="nav_imports.svg">icons/nav_imports.svg</file>
+        <file alias="nav_signature.svg">icons/nav_signature.svg</file>
+        <file alias="nav_findings.svg">icons/nav_findings.svg</file>
+        <file alias="nav_reports.svg">icons/nav_reports.svg</file>
+        <file alias="nav_settings.svg">icons/nav_settings.svg</file>
     </qresource>
 </RCC>

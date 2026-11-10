@@ -120,6 +120,7 @@ if(EXPLAINBIN_BUILD_UI)
 
     qt_add_executable(explainbin WIN32
         src/main.cpp
+        src/ui/Animations.cpp
         src/ui/MainWindow.cpp
         src/ui/Dashboard.cpp
         src/ui/FileAnalysisView.cpp

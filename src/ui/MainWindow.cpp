@@ -1,6 +1,7 @@
 #include "explainbin/ui/MainWindow.hpp"
 
 #include "explainbin/core/Analyzer.hpp"
+#include "explainbin/ui/Animations.hpp"
 #include "explainbin/ui/AppSettings.hpp"
 #include "explainbin/ui/Dashboard.hpp"
 #include "explainbin/ui/FileAnalysisView.hpp"
@@ -19,21 +20,29 @@
 #include <QDropEvent>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QFrame>
 #include <QHBoxLayout>
+#include <QIcon>
 #include <QLabel>
 #include <QListWidget>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QMimeData>
 #include <QProgressBar>
+#include <QPropertyAnimation>
 #include <QPushButton>
+#include <QScrollBar>
+#include <QShowEvent>
+#include <QSignalBlocker>
 #include <QStackedWidget>
 #include <QStatusBar>
+#include <QTimer>
 #include <QUrl>
 #include <QVBoxLayout>
 
 #include <QtConcurrent/QtConcurrentRun>
 
+#include <algorithm>
 #include <exception>
 #include <filesystem>
 
@@ -54,6 +63,9 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     resize(1360, 880);
     setMinimumSize(1080, 720);
     setAcceptDrops(true);
+    if (anim::enabled()) {
+        setWindowOpacity(0.0);
+    }
 
     buildInterface();
 
@@ -76,22 +88,46 @@ void MainWindow::buildInterface() {
 
     auto* sidebar = new QWidget(central);
     sidebar->setObjectName(QStringLiteral("sidebar"));
-    sidebar->setFixedWidth(232);
+    sidebar->setFixedWidth(238);
     auto* sidebarLayout = new QVBoxLayout(sidebar);
     sidebarLayout->setContentsMargins(14, 20, 14, 16);
-    sidebarLayout->setSpacing(6);
+    sidebarLayout->setSpacing(4);
 
-    auto* appName = new QLabel(QStringLiteral("ExplainBin"), sidebar);
+    auto* brandRow = new QWidget(sidebar);
+    auto* brandLayout = new QHBoxLayout(brandRow);
+    brandLayout->setContentsMargins(6, 0, 0, 0);
+    brandLayout->setSpacing(10);
+
+    auto* brandIcon = new QLabel(brandRow);
+    brandIcon->setPixmap(QIcon(QStringLiteral(":/icons/appicon.svg")).pixmap(32, 32));
+    brandIcon->setFixedSize(32, 32);
+
+    auto* brandText = new QWidget(brandRow);
+    auto* brandTextLayout = new QVBoxLayout(brandText);
+    brandTextLayout->setContentsMargins(0, 0, 0, 0);
+    brandTextLayout->setSpacing(0);
+    auto* appName = new QLabel(QStringLiteral("ExplainBin"), brandText);
     appName->setObjectName(QStringLiteral("appName"));
-    auto* tagline = new QLabel(QStringLiteral("Explainable PE analysis"), sidebar);
+    auto* tagline = new QLabel(QStringLiteral("Explainable PE analysis"), brandText);
     tagline->setObjectName(QStringLiteral("appTagline"));
-    sidebarLayout->addWidget(appName);
-    sidebarLayout->addWidget(tagline);
-    sidebarLayout->addSpacing(14);
+    brandTextLayout->addWidget(appName);
+    brandTextLayout->addWidget(tagline);
+
+    brandLayout->addWidget(brandIcon);
+    brandLayout->addWidget(brandText, 1);
+    sidebarLayout->addWidget(brandRow);
+    sidebarLayout->addSpacing(18);
+
+    auto* navSection = new QLabel(QStringLiteral("NAVIGATION"), sidebar);
+    navSection->setObjectName(QStringLiteral("navSection"));
+    navSection->setContentsMargins(14, 0, 0, 4);
+    sidebarLayout->addWidget(navSection);
 
     m_navigation = new QListWidget(sidebar);
     m_navigation->setObjectName(QStringLiteral("navList"));
     m_navigation->setFocusPolicy(Qt::NoFocus);
+    m_navigation->setIconSize(QSize(18, 18));
+    m_navigation->setSpacing(0);
     const QStringList sections = {
         QStringLiteral("Dashboard"),
         QStringLiteral("File Analysis"),
@@ -102,14 +138,42 @@ void MainWindow::buildInterface() {
         QStringLiteral("Reports"),
         QStringLiteral("Settings"),
     };
-    m_navigation->addItems(sections);
+    const QStringList sectionIcons = {
+        QStringLiteral(":/icons/nav_dashboard.svg"),
+        QStringLiteral(":/icons/nav_file.svg"),
+        QStringLiteral(":/icons/nav_structure.svg"),
+        QStringLiteral(":/icons/nav_imports.svg"),
+        QStringLiteral(":/icons/nav_signature.svg"),
+        QStringLiteral(":/icons/nav_findings.svg"),
+        QStringLiteral(":/icons/nav_reports.svg"),
+        QStringLiteral(":/icons/nav_settings.svg"),
+    };
+    for (int index = 0; index < sections.size(); ++index) {
+        new QListWidgetItem(QIcon(sectionIcons.at(index)), sections.at(index), m_navigation);
+    }
     sidebarLayout->addWidget(m_navigation, 1);
 
-    auto* footer = new QLabel(
-        QStringLiteral("v%1 \u00b7 offline \u00b7 static only").arg(fromUtf8(kToolVersion)),
-        sidebar);
-    footer->setObjectName(QStringLiteral("appTagline"));
-    footer->setWordWrap(true);
+    m_navIndicator = new QWidget(m_navigation->viewport());
+    m_navIndicator->setObjectName(QStringLiteral("navIndicator"));
+    m_navIndicator->setAttribute(Qt::WA_TransparentForMouseEvents);
+    m_navIndicator->hide();
+    m_navIndicatorAnimation = new QPropertyAnimation(m_navIndicator, "geometry", this);
+    m_navIndicatorAnimation->setDuration(220);
+    m_navIndicatorAnimation->setEasingCurve(QEasingCurve::OutCubic);
+
+    auto* separator = new QFrame(sidebar);
+    separator->setObjectName(QStringLiteral("sidebarSeparator"));
+    separator->setFrameShape(QFrame::HLine);
+    sidebarLayout->addWidget(separator);
+
+    auto* footer = new QLabel(sidebar);
+    footer->setObjectName(QStringLiteral("footerStatus"));
+    footer->setTextFormat(Qt::RichText);
+    footer->setText(QStringLiteral(
+                        "<span style=\"color:#5fd18b;\">&#9679;</span>&nbsp; v%1"
+                        "<br/><span>offline &middot; static only</span>")
+                        .arg(fromUtf8(kToolVersion)));
+    footer->setContentsMargins(6, 2, 0, 0);
     sidebarLayout->addWidget(footer);
 
     centralLayout->addWidget(sidebar);
@@ -122,7 +186,7 @@ void MainWindow::buildInterface() {
     auto* headerBar = new QWidget(mainArea);
     headerBar->setObjectName(QStringLiteral("headerBar"));
     auto* headerLayout = new QHBoxLayout(headerBar);
-    headerLayout->setContentsMargins(18, 12, 18, 12);
+    headerLayout->setContentsMargins(20, 12, 20, 12);
     headerLayout->setSpacing(10);
 
     m_fileChip = new QLabel(QStringLiteral("No file selected"), headerBar);
@@ -140,8 +204,9 @@ void MainWindow::buildInterface() {
     mainLayout->addWidget(headerBar);
 
     auto* progressRow = new QWidget(mainArea);
+    progressRow->setObjectName(QStringLiteral("progressRow"));
     auto* progressLayout = new QHBoxLayout(progressRow);
-    progressLayout->setContentsMargins(18, 8, 18, 8);
+    progressLayout->setContentsMargins(20, 8, 20, 8);
     progressLayout->setSpacing(12);
     m_stage = new QLabel(QStringLiteral("Ready. Open a Windows executable, DLL or driver."),
                          progressRow);
@@ -150,7 +215,8 @@ void MainWindow::buildInterface() {
     m_progress->setTextVisible(false);
     m_progress->setRange(0, 100);
     m_progress->setValue(0);
-    m_progress->setFixedWidth(200);
+    m_progress->setFixedWidth(190);
+    m_progress->hide();
     progressLayout->addWidget(m_stage, 1);
     progressLayout->addWidget(m_progress);
     mainLayout->addWidget(progressRow);
@@ -219,10 +285,13 @@ void MainWindow::buildInterface() {
     });
     connect(m_analyzeButton, &QPushButton::clicked, this, &MainWindow::startAnalysis);
     connect(m_navigation, &QListWidget::currentRowChanged, this, &MainWindow::navigate);
+    connect(m_navigation->verticalScrollBar(), &QScrollBar::valueChanged, this,
+            [this] { updateNavIndicator(false); });
     connect(m_settings, &SettingsView::settingsChanged, this, &MainWindow::onSettingsChanged);
 
-    m_navigation->setCurrentRow(0);
     m_stack->setCurrentIndex(0);
+    m_navigation->setCurrentRow(0);
+    updateNavIndicator(false);
 
     statusBar()->setSizeGripEnabled(false);
     statusBar()->showMessage(fromUtf8(kStaticAnalysisDisclaimer));
@@ -257,7 +326,6 @@ void MainWindow::startAnalysis() {
     if (m_path.isEmpty() || m_watcher.isRunning()) {
         return;
     }
-
     const QFileInfo info(m_path);
     if (!info.exists() || !info.isFile()) {
         QMessageBox::warning(this, QStringLiteral("File not found"),
@@ -278,6 +346,8 @@ void MainWindow::startAnalysis() {
 
     setBusy(true);
     m_progress->setRange(0, 0);
+    m_progress->setValue(0);
+    anim::fadeIn(m_progress, 180);
     m_stage->setText(QStringLiteral("Analyzing ") + info.fileName() +
                      QStringLiteral(" \u2014 reading, hashing, parsing and verifying\u2026"));
 
@@ -307,6 +377,7 @@ void MainWindow::onAnalysisFinished() {
     setBusy(false);
     m_progress->setRange(0, 100);
     m_progress->setValue(100);
+    QTimer::singleShot(650, this, [this] { anim::fadeOut(m_progress, 180); });
 
     if (m_result.success) {
         m_stage->setText(QStringLiteral("Analysis complete in %1 ms.").arg(m_result.durationMs));
@@ -330,19 +401,47 @@ void MainWindow::onSettingsChanged() {
 void MainWindow::setBusy(bool busy) {
     m_openButton->setEnabled(!busy);
     m_analyzeButton->setEnabled(!busy && !m_path.isEmpty());
-    if (busy) {
-        m_progress->setRange(0, 0);
-    }
 }
 
 void MainWindow::navigate(int index) {
     if (index < 0 || index >= kNavigationCount) {
         return;
     }
-    m_stack->setCurrentIndex(index);
+    if (m_stack->currentIndex() != index) {
+        m_stack->setCurrentIndex(index);
+        anim::fadeIn(m_stack->currentWidget(), 210);
+    }
     if (m_navigation->currentRow() != index) {
+        const QSignalBlocker blocker(m_navigation);
         m_navigation->setCurrentRow(index);
     }
+    updateNavIndicator(true);
+}
+
+void MainWindow::updateNavIndicator(bool animate) {
+    if (!m_navigation || !m_navIndicator) {
+        return;
+    }
+    const int row = m_navigation->currentRow();
+    if (row < 0) {
+        m_navIndicator->hide();
+        return;
+    }
+    const QRect itemRect = m_navigation->visualItemRect(m_navigation->item(row));
+    if (!itemRect.isValid() || itemRect.height() <= 0) {
+        return;
+    }
+    const QRect target(10, itemRect.top() + 8, 3, std::max(14, itemRect.height() - 16));
+    m_navIndicator->show();
+    m_navIndicator->raise();
+    if (!animate || !anim::enabled() || !m_navIndicatorAnimation) {
+        m_navIndicator->setGeometry(target);
+        return;
+    }
+    m_navIndicatorAnimation->stop();
+    m_navIndicatorAnimation->setStartValue(m_navIndicator->geometry());
+    m_navIndicatorAnimation->setEndValue(target);
+    m_navIndicatorAnimation->start();
 }
 
 void MainWindow::updateViews() {
@@ -404,6 +503,16 @@ void MainWindow::closeEvent(QCloseEvent* event) {
         return;
     }
     event->accept();
+}
+
+void MainWindow::showEvent(QShowEvent* event) {
+    QMainWindow::showEvent(event);
+    if (!m_firstShow) {
+        return;
+    }
+    m_firstShow = false;
+    updateNavIndicator(false);
+    anim::revealWindow(this, 260);
 }
 
 } // namespace explainbin::ui

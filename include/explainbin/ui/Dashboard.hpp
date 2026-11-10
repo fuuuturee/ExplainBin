@@ -29,7 +29,7 @@ private:
     SeverityChart* m_chart = nullptr;
     QListWidget* m_topFindings = nullptr;
     QLabel* m_sha256 = nullptr;
-    QLabel* m_empty = nullptr;
+    QWidget* m_empty = nullptr;
     QWidget* m_content = nullptr;
 };
 

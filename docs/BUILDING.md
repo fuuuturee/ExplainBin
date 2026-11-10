@@ -131,6 +131,33 @@ With a multi-config generator add `--config Release`.
 - The MinGW build may also require `libgcc_s_seh-1.dll`, `libstdc++-6.dll` and `libwinpthread-1.dll`, or link the runtime statically.
 - The application does not require administrator rights.
 
+### Single-file installer
+
+`installer/ExplainBin.iss` packages a self-contained build into one
+`ExplainBin-<version>-Setup.exe`. It installs per-user under
+`%LOCALAPPDATA%\Programs\ExplainBin`, so no administrator rights are needed.
+Pushing a `v*` tag runs `.github/workflows/release.yml`, which builds with MSVC,
+runs the tests, deploys the Qt runtime, compiles the installer and publishes it
+as the only download asset of the GitHub release.
+
+To build the installer locally with [Inno Setup 6](https://jrsoftware.org/isinfo.php):
+
+```powershell
+# 1. Stage a Release build and bundle the Qt runtime
+New-Item -ItemType Directory -Force dist\stage | Out-Null
+Copy-Item build\Release\ExplainBin.exe                    dist\stage
+Copy-Item build\Release\explainbin-cli.exe                dist\stage
+Copy-Item LICENSE                                         dist\stage
+windeployqt --release --no-translations --compiler-runtime dist\stage\ExplainBin.exe
+
+# 2. Compile the installer (adjust the version if needed)
+& "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" `
+  /DAppVersion=1.0.0 installer\ExplainBin.iss
+```
+
+The result is `dist\ExplainBin-<version>-Setup.exe`. Validate it silently with
+`/VERYSILENT /NORESTART` before publishing.
+
 ## Troubleshooting
 
 ### `Could not find a package configuration file provided by "Qt6"`

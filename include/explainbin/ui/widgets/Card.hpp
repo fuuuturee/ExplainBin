@@ -5,6 +5,7 @@
 #include <QString>
 
 class QLabel;
+class QVariantAnimation;
 
 namespace explainbin::ui {
 
@@ -19,11 +20,14 @@ public:
 
 private:
     void updateAccent();
+    void animateValue(int target);
 
     QLabel* m_title = nullptr;
     QLabel* m_value = nullptr;
     QLabel* m_subtitle = nullptr;
-    QString m_accent;
+    QColor m_accent;
+    QVariantAnimation* m_valueAnimation = nullptr;
+    QVariantAnimation* m_accentAnimation = nullptr;
 };
 
 } // namespace explainbin::ui

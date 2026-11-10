@@ -42,6 +42,7 @@ private:
     QVBoxLayout* m_cardsLayout = nullptr;
     QLabel* m_empty = nullptr;
     std::vector<CardEntry> m_cards;
+    bool m_animateNext = false;
 };
 
 } // namespace explainbin::ui

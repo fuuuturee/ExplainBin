@@ -19,6 +19,9 @@ All notable changes to ExplainBin are documented here. The format follows
   findings.
 - JSON, self-contained HTML and plain-text reports.
 - Qt 6 desktop application with eight sections and background analysis.
+- Refined dark and light themes with animated navigation, page fades, count-up
+  cards, animated severity charts and staggered finding cards. A Settings
+  option disables all interface animations for reduced motion.
 - Headless `explainbin-cli` with JSON/HTML/text output and stable exit codes.
 - GoogleTest suite with synthetic PE fixtures and no binary samples.
 - GitHub Actions CI for core tests and the Qt build.

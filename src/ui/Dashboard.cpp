@@ -1,13 +1,18 @@
 #include "explainbin/ui/Dashboard.hpp"
 
+#include "explainbin/ui/Animations.hpp"
 #include "explainbin/ui/Theme.hpp"
 #include "explainbin/ui/widgets/Card.hpp"
 #include "explainbin/ui/widgets/SeverityChart.hpp"
 
+#include <QFrame>
 #include <QGridLayout>
 #include <QHBoxLayout>
+#include <QIcon>
 #include <QLabel>
 #include <QListWidget>
+#include <QPainter>
+#include <QPixmap>
 #include <QVBoxLayout>
 
 namespace explainbin::ui {
@@ -38,6 +43,17 @@ QFrame* panel(QWidget* parent) {
     return frame;
 }
 
+QIcon severityDot(Severity severity) {
+    QPixmap pixmap(12, 12);
+    pixmap.fill(Qt::transparent);
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(severityColor(severity));
+    painter.drawEllipse(QRectF(2.5, 2.5, 7, 7));
+    return QIcon(pixmap);
+}
+
 } // namespace
 
 Dashboard::Dashboard(QWidget* parent) : QWidget(parent) {
@@ -50,16 +66,36 @@ Dashboard::Dashboard(QWidget* parent) : QWidget(parent) {
                                            "not a malware verdict."),
                             this));
 
-    m_empty = new QLabel(QStringLiteral(
-                             "Open a Windows executable, DLL or driver to begin.\n\n"
-                             "ExplainBin reads the file once, parses it with bounds checks and explains "
-                             "what it observed. The file is never executed, loaded or uploaded."),
-                         this);
-    m_empty->setAlignment(Qt::AlignCenter);
-    m_empty->setObjectName(QStringLiteral("muted"));
-    m_empty->setWordWrap(true);
-    m_empty->setMinimumHeight(320);
-    root->addWidget(m_empty);
+    auto* emptyPanel = new QFrame(this);
+    emptyPanel->setObjectName(QStringLiteral("emptyPanel"));
+    emptyPanel->setMinimumHeight(360);
+    m_empty = emptyPanel;
+    auto* emptyLayout = new QVBoxLayout(emptyPanel);
+    emptyLayout->setContentsMargins(32, 36, 32, 36);
+    emptyLayout->setSpacing(10);
+    emptyLayout->addStretch(1);
+
+    auto* emptyIcon = new QLabel(emptyPanel);
+    emptyIcon->setPixmap(QIcon(QStringLiteral(":/icons/appicon.svg")).pixmap(76, 76));
+    emptyIcon->setAlignment(Qt::AlignCenter);
+    auto* emptyTitle = new QLabel(QStringLiteral("No file analyzed yet"), emptyPanel);
+    emptyTitle->setObjectName(QStringLiteral("emptyTitle"));
+    emptyTitle->setAlignment(Qt::AlignCenter);
+    auto* emptyHint = new QLabel(
+        QStringLiteral("Open a Windows executable, DLL or driver, or drop it anywhere in this "
+                       "window. ExplainBin reads the file once, parses it with bounds checks and "
+                       "explains what it observed. The file is never executed, loaded or uploaded."),
+        emptyPanel);
+    emptyHint->setObjectName(QStringLiteral("emptyHint"));
+    emptyHint->setAlignment(Qt::AlignCenter);
+    emptyHint->setWordWrap(true);
+    emptyHint->setMaximumWidth(560);
+
+    emptyLayout->addWidget(emptyIcon, 0, Qt::AlignHCenter);
+    emptyLayout->addWidget(emptyTitle);
+    emptyLayout->addWidget(emptyHint, 0, Qt::AlignHCenter);
+    emptyLayout->addStretch(1);
+    root->addWidget(emptyPanel, 1);
 
     m_content = new QWidget(this);
     auto* contentLayout = new QVBoxLayout(m_content);
@@ -78,12 +114,12 @@ Dashboard::Dashboard(QWidget* parent) : QWidget(parent) {
     m_findingsCard = new Card(QStringLiteral("Findings"), cards);
     m_signatureCard = new Card(QStringLiteral("Signature"), cards);
 
-    cardLayout->addWidget(m_fileCard, 0, 0);
-    cardLayout->addWidget(m_formatCard, 0, 1);
-    cardLayout->addWidget(m_sectionsCard, 0, 2);
-    cardLayout->addWidget(m_findingsCard, 0, 3);
-    cardLayout->addWidget(m_signatureCard, 0, 4);
-    for (int column = 0; column < 5; ++column) {
+    cardLayout->addWidget(m_fileCard, 0, 0, 1, 2);
+    cardLayout->addWidget(m_formatCard, 0, 2);
+    cardLayout->addWidget(m_sectionsCard, 0, 3);
+    cardLayout->addWidget(m_findingsCard, 0, 4);
+    cardLayout->addWidget(m_signatureCard, 0, 5);
+    for (int column = 0; column < 6; ++column) {
         cardLayout->setColumnStretch(column, 1);
     }
     contentLayout->addWidget(cards);
@@ -98,7 +134,7 @@ Dashboard::Dashboard(QWidget* parent) : QWidget(parent) {
     chartLayout->setContentsMargins(18, 16, 18, 16);
     chartLayout->setSpacing(8);
     auto* chartTitle = new QLabel(QStringLiteral("Severity distribution"), chartPanel);
-    chartTitle->setStyleSheet(QStringLiteral("font-weight: 650; font-size: 11pt;"));
+    chartTitle->setObjectName(QStringLiteral("panelTitle"));
     auto* chartHint = new QLabel(
         QStringLiteral("Counts describe observations. ExplainBin does not combine them into a score."),
         chartPanel);
@@ -116,13 +152,15 @@ Dashboard::Dashboard(QWidget* parent) : QWidget(parent) {
     topLayout->setContentsMargins(18, 16, 18, 16);
     topLayout->setSpacing(8);
     auto* topTitle = new QLabel(QStringLiteral("Top observations"), topPanel);
-    topTitle->setStyleSheet(QStringLiteral("font-weight: 650; font-size: 11pt;"));
+    topTitle->setObjectName(QStringLiteral("panelTitle"));
     m_topFindings = new QListWidget(topPanel);
     m_topFindings->setObjectName(QStringLiteral("plainList"));
     m_topFindings->setAlternatingRowColors(true);
     m_topFindings->setSelectionMode(QAbstractItemView::NoSelection);
     m_topFindings->setFocusPolicy(Qt::NoFocus);
     m_topFindings->setWordWrap(true);
+    m_topFindings->setIconSize(QSize(12, 12));
+    m_topFindings->setSpacing(1);
     m_sha256 = new QLabel(topPanel);
     m_sha256->setObjectName(QStringLiteral("muted"));
     m_sha256->setWordWrap(true);
@@ -140,8 +178,8 @@ Dashboard::Dashboard(QWidget* parent) : QWidget(parent) {
 }
 
 void Dashboard::setResult(const AnalysisResult& result) {
-    m_empty->setVisible(false);
-    m_content->setVisible(true);
+    m_empty->hide();
+    anim::fadeIn(m_content, 240);
 
     const auto& file = result.file;
     const auto& pe = result.pe;
@@ -206,10 +244,15 @@ void Dashboard::setResult(const AnalysisResult& result) {
         if (shown++ >= 8) {
             break;
         }
-        const auto severity = severityLabel(finding.severity).toUpper();
-        m_topFindings->addItem(QStringLiteral("[%1]  %2  (%3)")
-                                   .arg(severity, fromUtf8(finding.title),
-                                        fromUtf8(finding.id)));
+        auto* item = new QListWidgetItem(
+            severityDot(finding.severity),
+            QStringLiteral("%1   %2")
+                .arg(fromUtf8(finding.title), fromUtf8(finding.id)));
+        item->setToolTip(QStringLiteral("%1 \u00b7 %2 \u00b7 confidence: %3")
+                             .arg(severityLabel(finding.severity),
+                                  fromUtf8(finding.category),
+                                  fromUtf8(std::string(toString(finding.confidence)))));
+        m_topFindings->addItem(item);
     }
     if (result.findings.empty()) {
         m_topFindings->addItem(QStringLiteral(
@@ -223,8 +266,8 @@ void Dashboard::setResult(const AnalysisResult& result) {
 }
 
 void Dashboard::clear() {
-    m_content->setVisible(false);
-    m_empty->setVisible(true);
+    m_content->hide();
+    anim::fadeIn(m_empty, 200);
     m_topFindings->clear();
     m_chart->clear();
     m_sha256->clear();

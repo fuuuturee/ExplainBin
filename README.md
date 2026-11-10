@@ -55,6 +55,7 @@ Most "suspicious file" tools reduce an executable to a number or a red/green ico
 - **Explainable findings**: stable rule IDs, severity, confidence, evidence, benign explanations and next steps. No opaque malware score.
 - **Reports**: schema-stable JSON, self-contained dark HTML and plain text. Reports are written locally. See [docs/REPORT_SCHEMA.md](docs/REPORT_SCHEMA.md) for the JSON contract.
 - **GUI and CLI**: Qt 6 Widgets desktop application and a headless `explainbin-cli` for automation.
+- **Refined interface**: clean dark and light themes, animated navigation, page transitions, count-up cards and severity charts. Interface animations can be disabled in Settings for reduced motion.
 - **Tests and CI**: GoogleTest suite with synthetic PE fixtures, no malware samples or binary fixtures required.
 
 ## Screenshots
@@ -71,7 +72,7 @@ Most "suspicious file" tools reduce an executable to a number or a red/green ico
 | --- |
 | ![Digital signature](docs/images/signature.png) |
 
-> Screenshots are captured from the running Qt application while it analyzes a standard Windows binary. No malware samples are used.
+> Screenshots show the dark theme; a light theme and an animation toggle are available in Settings. They are captured from the running Qt application while it analyzes a standard Windows binary. No malware samples are used.
 
 ## Requirements
 

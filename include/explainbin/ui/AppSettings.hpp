@@ -10,6 +10,7 @@ struct AppSettings {
     bool computeMd5 = true;
     int maxSizeMb = 256;
     bool darkTheme = true;
+    bool animations = true;
 
     static AppSettings load() {
         QSettings settings(QStringLiteral("ExplainBin"), QStringLiteral("ExplainBin"));
@@ -19,6 +20,7 @@ struct AppSettings {
         value.computeMd5 = settings.value(QStringLiteral("analysis/computeMd5"), true).toBool();
         value.maxSizeMb = settings.value(QStringLiteral("analysis/maxSizeMb"), 256).toInt();
         value.darkTheme = settings.value(QStringLiteral("ui/darkTheme"), true).toBool();
+        value.animations = settings.value(QStringLiteral("ui/animations"), true).toBool();
         if (value.maxSizeMb < 1 || value.maxSizeMb > 4096) {
             value.maxSizeMb = 256;
         }
@@ -31,6 +33,7 @@ struct AppSettings {
         settings.setValue(QStringLiteral("analysis/computeMd5"), computeMd5);
         settings.setValue(QStringLiteral("analysis/maxSizeMb"), maxSizeMb);
         settings.setValue(QStringLiteral("ui/darkTheme"), darkTheme);
+        settings.setValue(QStringLiteral("ui/animations"), animations);
     }
 };
 

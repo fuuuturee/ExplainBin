@@ -1,10 +1,14 @@
 #include "explainbin/ui/widgets/SeverityChart.hpp"
 
+#include "explainbin/ui/Animations.hpp"
 #include "explainbin/ui/Theme.hpp"
 
 #include <QFontMetrics>
+#include <QLinearGradient>
 #include <QPainter>
 #include <QPaintEvent>
+#include <QPalette>
+#include <QVariantAnimation>
 
 #include <algorithm>
 #include <array>
@@ -21,24 +25,53 @@ struct Row {
 } // namespace
 
 SeverityChart::SeverityChart(QWidget* parent) : QWidget(parent) {
-    setMinimumHeight(168);
+    setMinimumHeight(172);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 }
 
 void SeverityChart::setCounts(const SeverityCounts& counts) {
     m_counts = counts;
     m_hasData = true;
-    update();
+    startAnimation();
 }
 
 void SeverityChart::clear() {
     m_counts = {};
     m_hasData = false;
+    m_progress = 0.0;
+    if (m_animation) {
+        m_animation->stop();
+    }
+    update();
+}
+
+void SeverityChart::startAnimation() {
+    if (!anim::enabled()) {
+        m_progress = 1.0;
+        update();
+        return;
+    }
+    if (m_animation) {
+        m_animation->stop();
+        m_animation->deleteLater();
+    }
+    m_progress = 0.0;
+    auto* animation = new QVariantAnimation(this);
+    animation->setDuration(620);
+    animation->setStartValue(0.0);
+    animation->setEndValue(1.0);
+    animation->setEasingCurve(QEasingCurve::OutCubic);
+    connect(animation, &QVariantAnimation::valueChanged, this, [this](const QVariant& value) {
+        m_progress = value.toReal();
+        update();
+    });
+    m_animation = animation;
+    animation->start();
     update();
 }
 
 QSize SeverityChart::sizeHint() const {
-    return {360, 178};
+    return {380, 190};
 }
 
 void SeverityChart::paintEvent(QPaintEvent* event) {
@@ -54,12 +87,18 @@ void SeverityChart::paintEvent(QPaintEvent* event) {
         {QT_TRANSLATE_NOOP("SeverityChart", "Info"), m_counts.informational, Severity::Informational},
     }};
 
+    const QPalette colors = palette();
+    const QColor muted = colors.color(QPalette::PlaceholderText);
+    const QColor text = colors.color(QPalette::Text);
+    QColor track = colors.color(QPalette::Mid);
+    track.setAlpha(80);
+
     const int labelWidth = 58;
-    const int valueWidth = 28;
-    const int rowHeight = 29;
-    const int top = 6;
+    const int valueWidth = 30;
+    const int rowHeight = 30;
+    const int top = 4;
     const int barLeft = labelWidth;
-    const int barWidth = std::max(20, width() - labelWidth - valueWidth - 8);
+    const int barWidth = std::max(20, width() - labelWidth - valueWidth - 10);
 
     int maximum = 1;
     for (const auto& row : rows) {
@@ -69,36 +108,42 @@ void SeverityChart::paintEvent(QPaintEvent* event) {
     QFont labelFont = font();
     labelFont.setPointSizeF(8.5);
     painter.setFont(labelFont);
-    const QFontMetrics metrics(labelFont);
 
     for (std::size_t index = 0; index < rows.size(); ++index) {
         const auto& row = rows[index];
         const int y = top + static_cast<int>(index) * rowHeight;
 
-        painter.setPen(QColor(0x84, 0x96, 0xa9));
-        painter.drawText(QRect(0, y, labelWidth - 8, 20),
+        painter.setPen(muted);
+        painter.drawText(QRect(0, y, labelWidth - 8, 22),
                          Qt::AlignVCenter | Qt::AlignLeft,
                          QString::fromLatin1(row.label));
 
-        const QRectF track(barLeft, y + 5, barWidth, 10);
+        const QRectF trackRect(barLeft, y + 6, barWidth, 9);
         painter.setPen(Qt::NoPen);
-        painter.setBrush(QColor(0x0a, 0x10, 0x17));
-        painter.drawRoundedRect(track, 5, 5);
+        painter.setBrush(track);
+        painter.drawRoundedRect(trackRect, 4.5, 4.5);
 
-        if (m_hasData && row.count > 0) {
+        if (m_hasData && row.count > 0 && m_progress > 0.0) {
             const double fraction = static_cast<double>(row.count) / static_cast<double>(maximum);
-            QRectF fill = track;
-            fill.setWidth(std::max(6.0, track.width() * fraction));
+            const double animated = fraction * m_progress;
+            QRectF fill = trackRect;
+            fill.setWidth(std::max(9.0, trackRect.width() * animated));
             QColor color = severityColor(row.severity);
-            painter.setBrush(color);
-            painter.drawRoundedRect(fill, 5, 5);
+            QLinearGradient gradient(fill.topLeft(), fill.bottomLeft());
+            gradient.setColorAt(0.0, color.lighter(115));
+            gradient.setColorAt(1.0, color);
+            painter.setBrush(gradient);
+            painter.drawRoundedRect(fill, 4.5, 4.5);
         }
 
-        painter.setPen(QColor(0xdc, 0xe6, 0xf2));
-        painter.drawText(QRect(width() - valueWidth, y, valueWidth, 20),
+        QFont valueFont = labelFont;
+        valueFont.setBold(true);
+        painter.setFont(valueFont);
+        painter.setPen(text);
+        painter.drawText(QRect(width() - valueWidth, y, valueWidth, 22),
                          Qt::AlignVCenter | Qt::AlignRight,
-                         QString::number(row.count));
-        (void)metrics;
+                         QString::number(qRound(row.count * m_progress)));
+        painter.setFont(labelFont);
     }
 }
 

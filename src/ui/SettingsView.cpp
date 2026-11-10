@@ -55,6 +55,11 @@ SettingsView::SettingsView(QWidget* parent) : QWidget(parent) {
     m_theme->addItem(QStringLiteral("Light"));
     formLayout->addRow(QStringLiteral("Theme"), m_theme);
 
+    m_animations = new QCheckBox(QStringLiteral("Enable interface animations"), form);
+    m_animations->setToolTip(
+        QStringLiteral("Fades, page transitions and animated charts. Disable to reduce motion."));
+    formLayout->addRow(m_animations);
+
     root->addWidget(form);
 
     m_saved = new QLabel(this);
@@ -70,6 +75,7 @@ SettingsView::SettingsView(QWidget* parent) : QWidget(parent) {
     connect(m_maxSize, QOverload<int>::of(&QSpinBox::valueChanged), this, &SettingsView::persist);
     connect(m_theme, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
             &SettingsView::persist);
+    connect(m_animations, &QCheckBox::toggled, this, &SettingsView::persist);
 
     reload();
 }
@@ -81,6 +87,7 @@ void SettingsView::reload() {
     m_computeMd5->setChecked(settings.computeMd5);
     m_maxSize->setValue(settings.maxSizeMb);
     m_theme->setCurrentIndex(settings.darkTheme ? 0 : 1);
+    m_animations->setChecked(settings.animations);
     m_loading = false;
     m_saved->clear();
 }
@@ -95,6 +102,7 @@ void SettingsView::persist() {
     settings.computeMd5 = m_computeMd5->isChecked();
     settings.maxSizeMb = m_maxSize->value();
     settings.darkTheme = m_theme->currentIndex() == 0;
+    settings.animations = m_animations->isChecked();
     settings.save();
 
     m_saved->setText(QStringLiteral("Settings saved."));

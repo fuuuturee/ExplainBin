@@ -28,6 +28,7 @@ private:
     QCheckBox* m_computeMd5 = nullptr;
     QSpinBox* m_maxSize = nullptr;
     QComboBox* m_theme = nullptr;
+    QCheckBox* m_animations = nullptr;
     QLabel* m_saved = nullptr;
     bool m_loading = false;
 };

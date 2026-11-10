@@ -8,7 +8,9 @@
 class QLabel;
 class QListWidget;
 class QProgressBar;
+class QPropertyAnimation;
 class QPushButton;
+class QShowEvent;
 class QStackedWidget;
 class QVBoxLayout;
 
@@ -35,6 +37,7 @@ protected:
     void dragEnterEvent(QDragEnterEvent* event) override;
     void dropEvent(QDropEvent* event) override;
     void closeEvent(QCloseEvent* event) override;
+    void showEvent(QShowEvent* event) override;
 
 private:
     void buildInterface();
@@ -43,6 +46,7 @@ private:
     void onSettingsChanged();
     void setBusy(bool busy);
     void navigate(int index);
+    void updateNavIndicator(bool animate);
     void updateViews();
     void setResult(const AnalysisResult& result);
 
@@ -57,6 +61,8 @@ private:
 
     QListWidget* m_navigation = nullptr;
     QStackedWidget* m_stack = nullptr;
+    QWidget* m_navIndicator = nullptr;
+    QPropertyAnimation* m_navIndicatorAnimation = nullptr;
     QLabel* m_fileChip = nullptr;
     QLabel* m_stage = nullptr;
     QProgressBar* m_progress = nullptr;
@@ -68,6 +74,7 @@ private:
     QString m_path;
     bool m_hasResult = false;
     bool m_closing = false;
+    bool m_firstShow = true;
 };
 
 } // namespace explainbin::ui
