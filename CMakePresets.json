@@ -1,0 +1,92 @@
+{
+  "version": 5,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 24,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "core",
+      "displayName": "Core, CLI and tests (Ninja, Release)",
+      "description": "Fast build without Qt. Runs the GoogleTest suite and the CLI smoke tests.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-core",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "EXPLAINBIN_BUILD_UI": "OFF",
+        "EXPLAINBIN_BUILD_TESTS": "ON",
+        "EXPLAINBIN_WARNINGS_AS_ERRORS": "ON",
+        "CMAKE_POLICY_VERSION_MINIMUM": "3.5"
+      }
+    },
+    {
+      "name": "gui-msvc",
+      "displayName": "Full GUI build (Visual Studio 2022)",
+      "description": "Requires QT_ROOT to point at a Qt 6 msvc2022_64 kit.",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_PREFIX_PATH": "$env{QT_ROOT}",
+        "EXPLAINBIN_BUILD_UI": "ON",
+        "EXPLAINBIN_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "gui-mingw",
+      "displayName": "Full GUI build (MinGW-w64 + Ninja)",
+      "description": "Requires g++/gcc on PATH and QT_ROOT pointing at a matching Qt 6 mingw_64 kit.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "CMAKE_PREFIX_PATH": "$env{QT_ROOT}",
+        "CMAKE_POLICY_VERSION_MINIMUM": "3.5",
+        "EXPLAINBIN_BUILD_UI": "ON",
+        "EXPLAINBIN_BUILD_TESTS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "core",
+      "configurePreset": "core"
+    },
+    {
+      "name": "gui-msvc",
+      "configurePreset": "gui-msvc",
+      "configuration": "Release"
+    },
+    {
+      "name": "gui-mingw",
+      "configurePreset": "gui-mingw"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "core",
+      "configurePreset": "core",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "gui-msvc",
+      "configurePreset": "gui-msvc",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "gui-mingw",
+      "configurePreset": "gui-mingw",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

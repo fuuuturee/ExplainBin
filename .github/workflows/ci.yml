@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core-tests:
+    name: Core and tests (MSVC, no Qt)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure
+        run: >
+          cmake -S . -B build-core
+          -G "Visual Studio 17 2022" -A x64
+          -DEXPLAINBIN_BUILD_UI=OFF
+          -DEXPLAINBIN_BUILD_TESTS=ON
+          -DEXPLAINBIN_WARNINGS_AS_ERRORS=ON
+      - name: Build
+        run: cmake --build build-core --config Release --parallel
+
+      - name: Test
+        run: ctest --test-dir build-core -C Release --output-on-failure
+
+      - name: CLI smoke test
+        shell: pwsh
+        run: |
+          .\build-core\Release\explainbin-cli.exe C:\Windows\System32\notepad.exe `
+            --no-signature `
+            --json core-cli.json --html core-cli.html --text core-cli.txt
+          if (-not (Test-Path core-cli.json)) { throw "JSON report was not written" }
+          if (-not (Test-Path core-cli.html)) { throw "HTML report was not written" }
+          $report = Get-Content core-cli.json -Raw | ConvertFrom-Json
+          if ($report.schemaVersion -ne "1.0") { throw "Unexpected schema version" }
+          if (-not $report.file.hashes.sha256) { throw "Missing SHA-256" }
+
+  ui-build:
+    name: Full build with Qt 6 (MSVC)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.0'
+          arch: win64_msvc2022_64
+          cache: true
+
+      - name: Configure
+        run: >
+          cmake -S . -B build
+          -G "Visual Studio 17 2022" -A x64
+          -DEXPLAINBIN_BUILD_UI=ON
+          -DEXPLAINBIN_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Deploy Qt runtime
+        shell: pwsh
+        run: |
+          $exe = "build\Release\ExplainBin.exe"
+          if (-not (Test-Path $exe)) { throw "GUI executable missing" }
+          windeployqt --release --no-translations $exe
+
+      - name: Upload portable build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ExplainBin-windows-x64
+          if-no-files-found: error
+          path: |
+            build/Release/ExplainBin.exe
+            build/Release/explainbin-cli.exe
+            build/Release/*.dll
+            build/Release/platforms/**

@@ -1,0 +1,58 @@
+name: Feature request
+description: Suggest a rule, view, report format or workflow improvement
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ExplainBin accepts features that improve explainability, evidence quality, safety or analyst workflow.
+        It does **not** accept opaque malware scoring, sample execution or file uploads.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - PE parsing / metadata
+        - New finding rule
+        - Import analysis
+        - Signature analysis
+        - GUI
+        - CLI / automation
+        - Reports
+        - Documentation
+        - Build / packaging
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What analyst problem should this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the behavior, data, evidence and UI you expect.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: textarea
+    id: explainability
+    attributes:
+      label: Explainability and benign cases
+      description: For new rules, list possible legitimate explanations and recommended investigation steps.
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Constraints
+      options:
+        - label: This does not require executing, unpacking or uploading the analyzed file.
+          required: true
+        - label: This does not request a malware/clean verdict or a combined score.
+          required: true
