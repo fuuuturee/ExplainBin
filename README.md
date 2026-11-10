@@ -14,6 +14,21 @@ ExplainBin inspects Windows executables, DLLs and drivers **without running them
 
 ---
 
+## Download
+
+Get the latest **single-file installer** from the
+[Releases page](https://github.com/fuuuturee/ExplainBin/releases/latest) and run it:
+
+- Self-contained: the Qt runtime and the C++ runtime are bundled, no extra downloads
+- Per-user install under `%LOCALAPPDATA%\Programs\ExplainBin`, no administrator rights required
+- Includes the GUI and the `explainbin-cli.exe` command-line analyzer
+- Uninstall through Windows *Apps & features*
+
+The installer is not code-signed yet, so Windows SmartScreen may show a warning. The SHA-256
+checksum of every installer is published in the release notes.
+
+---
+
 ## Why ExplainBin exists
 
 Most "suspicious file" tools reduce an executable to a number or a red/green icon. That hides reasoning and creates false confidence. ExplainBin takes the opposite approach: every finding contains

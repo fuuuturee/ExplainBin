@@ -16,7 +16,7 @@ concurrency:
 jobs:
   core-tests:
     name: Core and tests (MSVC, no Qt)
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -48,7 +48,7 @@ jobs:
 
   ui-build:
     name: Full build with Qt 6 (MSVC)
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
       - name: Checkout
         uses: actions/checkout@v4

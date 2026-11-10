@@ -1,0 +1,144 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  QT_VERSION: '6.8.0'
+
+jobs:
+  installer:
+    name: Build single-EXE installer (MSVC)
+    # windows-2022 is required: windows-latest now ships Visual Studio 2026,
+    # which no longer provides the "Visual Studio 17 2022" CMake generator.
+    runs-on: windows-2022
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.0'
+          arch: win64_msvc2022_64
+          cache: true
+
+      - name: Determine version
+        id: version
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF -like 'refs/tags/v*') {
+            $version = $env:GITHUB_REF_NAME.Substring(1)
+          } else {
+            $match = Select-String -Path CMakeLists.txt `
+              -Pattern 'project\(ExplainBin VERSION ([0-9]+\.[0-9]+\.[0-9]+)' |
+              Select-Object -First 1
+            if (-not $match) { throw "Cannot read the version from CMakeLists.txt" }
+            $version = $match.Matches[0].Groups[1].Value
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=v$version" >> $env:GITHUB_OUTPUT
+          Write-Host "Building ExplainBin $version"
+
+      - name: Configure
+        run: >
+          cmake -S . -B build
+          -G "Visual Studio 17 2022" -A x64
+          -DEXPLAINBIN_BUILD_UI=ON
+          -DEXPLAINBIN_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Stage portable application
+        shell: pwsh
+        run: |
+          $stage = "dist\stage"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item "build\Release\ExplainBin.exe" $stage -Force
+          Copy-Item "build\Release\explainbin-cli.exe" $stage -Force
+          Copy-Item "LICENSE" $stage -Force
+
+          windeployqt --release --no-translations --compiler-runtime "$stage\ExplainBin.exe"
+          if ($LASTEXITCODE -ne 0) { throw "windeployqt failed" }
+
+          if (-not (Test-Path "$stage\ExplainBin.exe")) { throw "GUI executable missing" }
+          if (-not (Test-Path "$stage\Qt6Widgets.dll")) { throw "Qt Widgets runtime missing" }
+          if (-not (Test-Path "$stage\platforms\qwindows.dll")) { throw "Qt platform plugin missing" }
+
+          & "$stage\explainbin-cli.exe" --version
+          if ($LASTEXITCODE -ne 0) { throw "Staged CLI does not start" }
+
+          Get-ChildItem $stage -Recurse -File |
+            Sort-Object FullName |
+            ForEach-Object { $_.FullName.Substring((Resolve-Path $stage).Path.Length + 1) }
+
+      - name: Compile installer
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $candidates = @(
+            "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
+            "C:\Program Files\Inno Setup 6\ISCC.exe",
+            "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"
+          )
+          $iscc = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $iscc) { $iscc = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source }
+          if (-not $iscc) { throw "Inno Setup compiler (ISCC.exe) not found" }
+
+          & $iscc "/DAppVersion=$version" "installer\ExplainBin.iss"
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed" }
+
+          $installer = "dist\ExplainBin-$version-Setup.exe"
+          if (-not (Test-Path $installer)) { throw "Installer was not produced" }
+          Get-Item $installer | Select-Object FullName, Length
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ExplainBin-Setup
+          if-no-files-found: error
+          path: dist/ExplainBin-*-Setup.exe
+
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = "${{ steps.version.outputs.version }}"
+          $installer = "dist\ExplainBin-$version-Setup.exe"
+          $hash = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower()
+
+          $notes = Get-Content "installer\RELEASE_NOTES.md" -Raw
+          $notes = $notes.Replace('@VERSION@', $version).Replace('@SHA256@', $hash)
+          Set-Content -Path "dist\release-notes.md" -Value $notes -Encoding utf8
+
+          gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag $installer --repo $env:GITHUB_REPOSITORY --clobber
+            gh release edit $tag --repo $env:GITHUB_REPOSITORY --notes-file "dist\release-notes.md"
+          } else {
+            gh release create $tag $installer `
+              --repo $env:GITHUB_REPOSITORY `
+              --title "ExplainBin $version" `
+              --notes-file "dist\release-notes.md" `
+              --latest
+          }
+          if ($LASTEXITCODE -ne 0) { throw "Publishing the GitHub release failed" }

@@ -22,6 +22,9 @@ All notable changes to ExplainBin are documented here. The format follows
 - Headless `explainbin-cli` with JSON/HTML/text output and stable exit codes.
 - GoogleTest suite with synthetic PE fixtures and no binary samples.
 - GitHub Actions CI for core tests and the Qt build.
+- Single-file Windows installer (Inno Setup) with the Qt runtime bundled, a
+  per-user install and no administrator requirement, published automatically by
+  the release workflow.
 - Build, architecture, rule and roadmap documentation.
 
 ### Accuracy

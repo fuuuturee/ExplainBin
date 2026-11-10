@@ -2,6 +2,7 @@
 /build/
 /out/
 /install/
+/dist/
 /CMakeFiles/
 /CMakeCache.txt
 /CMakeUserPresets.json
