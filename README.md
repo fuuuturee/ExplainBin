@@ -4,7 +4,7 @@
 
 ExplainBin inspects Windows executables, DLLs and drivers **without running them**. It explains what it observed, why the observation can matter, which legitimate scenarios can produce the same pattern, and what to investigate next. It never produces a misleading "malware percentage".
 
-[![CI](https://github.com/explainbin/explainbin/actions/workflows/ci.yml/badge.svg)](.github/workflows/ci.yml)
+[![CI](https://github.com/fuuuturee/ExplainBin/actions/workflows/ci.yml/badge.svg)](https://github.com/fuuuturee/ExplainBin/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-4cc2ff.svg)](LICENSE)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-00599c.svg)](#requirements)
 [![Qt 6](https://img.shields.io/badge/Qt-6.5%2B-41cd52.svg)](#requirements)
